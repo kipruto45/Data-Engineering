@@ -111,6 +111,32 @@ python scripts/export_powerbi_snapshot.py
 # Output: dashboards/powerbi_sample_export.csv
 ```
 
+## 📊 Power BI Dashboard
+
+### Dashboard Screenshot
+
+The ETL pipeline connects to a comprehensive PowerBI dashboard that visualizes Kenyan market data:
+
+![Kenyan Market ETL Dashboard](dashboards/dashboard_screenshot.png)
+
+### Dashboard Features
+
+- **Sum of Quantity by Date**: Time-series volume trends (peak March 2024: 4K units)
+- **Sum of Price by Date**: Price volatility analysis (max ~3K in February)
+- **Quantity by Market**: Top markets - Mombasa (18K), Garissa (16K), Nyeri (14K)
+- **Quantity by Product**: Top commodities - Coffee (16K), Rice (15K), Beans (15K)
+- **Data Volume Tracking**: Monthly and yearly record counts (500 total for 2024)
+
+**See [Dashboard Analytics Guide](dashboards/DASHBOARD_ANALYTICS.md) for detailed insights**
+
+### Real-time Connection
+
+```text
+PostgreSQL Database → PowerBI Live Connection → Interactive Dashboards
+```
+
+The dashboard automatically updates when new data is loaded to PostgreSQL, providing real-time market intelligence for decision-makers.
+
 ## Project Structure
 
 - `etl/`: ETL pipeline modules (extract, transform, load)
