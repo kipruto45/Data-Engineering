@@ -1,85 +1,53 @@
-"""Generate realistic M-Pesa transaction sample data"""
+"""Generate realistic M-Pesa transaction sample data using transaction_generator module"""
 
 import pandas as pd
 import numpy as np
-from datetime import datetime, timedelta
-import random
 import os
+from datetime import datetime
 
-# Set seed for reproducibility
-np.random.seed(42)
-random.seed(42)
+# Import the transaction generator
+from generator.transaction_generator import TransactionGenerator
 
-# Generate 500 realistic M-Pesa transactions
-n_records = 500
+# Create data directory if it doesn't exist
+os.makedirs('data', exist_ok=True)
 
-# Kenyan phone numbers (254712-254799)
-senders = [f'254{random.randint(712, 799)}{random.randint(100000, 999999):06d}' for _ in range(100)]
-receivers = [f'254{random.randint(712, 799)}{random.randint(100000, 999999):06d}' for _ in range(100)]
+# Generate 500 realistic M-Pesa transactions using the module
+generator = TransactionGenerator(
+    start_date=datetime(2024, 1, 1),
+    end_date=datetime(2024, 12, 31)
+)
 
-# Transaction types
-transaction_types = ['Transfer', 'Withdrawal', 'Deposit', 'Payment', 'Reversal']
-statuses = ['completed', 'pending', 'failed']
+# Generate transactions using the same module used in Airflow DAGs
+transactions = generator.generate_transactions(count=500)
 
-# Generate data
-data = []
-base_time = datetime(2024, 1, 1)
+# Convert to DataFrame for CSV export
+df = pd.DataFrame(transactions)
 
-for i in range(n_records):
-    transaction_id = f'TXN{2024000001 + i}'
-    sender = random.choice(senders)
-    receiver = random.choice(receivers)
-    
-    # Amount: 100 to 50000 KES with more small transactions
-    amount = np.random.lognormal(mean=8, sigma=1.5)
-    amount = round(max(100, min(50000, amount)), 2)
-    
-    timestamp = base_time + timedelta(
-        days=random.randint(0, 365),
-        hours=random.randint(0, 23),
-        minutes=random.randint(0, 59)
-    )
-    
-    transaction_type = random.choice(transaction_types)
-    
-    # Status weighted towards completed
-    rand = random.random()
-    if rand < 0.90:
-        status = 'completed'
-    elif rand < 0.95:
-        status = 'pending'
-    else:
-        status = 'failed'
-    
-    fee = round(amount * 0.01, 2) if status == 'completed' else 0
-    
-    data.append({
-        'transaction_id': transaction_id,
-        'sender': sender,
-        'receiver': receiver,
-        'amount': amount,
-        'fee': fee,
-        'timestamp': timestamp.isoformat(),
-        'transaction_type': transaction_type,
-        'status': status
-    })
-
-# Create DataFrame
-df = pd.DataFrame(data)
+# Map generator status names to pipeline status names for consistency
+status_mapping = {
+    'success': 'completed',
+    'failed': 'failed',
+    'pending': 'pending',
+    'reversed': 'failed'
+}
+df['status'] = df['status'].map(status_mapping)
 
 # Add some realistic data quality issues (for testing data cleaning)
-# Add some nulls (2%)
+# This tests the robustness of the cleaning pipeline
+
+# Add some nulls (2% - simulate real data quality issues)
 null_indices = np.random.choice(df.index, size=int(len(df) * 0.02), replace=False)
 for idx in null_indices:
-    df.loc[idx, random.choice(['amount', 'status'])] = None
+    df.loc[idx, np.random.choice(['amount', 'status'])] = None
 
-# Add some duplicates (5)
+# Add some duplicates (5 - simulate real duplicate transactions)
 dup_indices = np.random.choice(df.index, size=5, replace=False)
 for idx in dup_indices:
     df = pd.concat([df, df.loc[[idx]]], ignore_index=True)
 
-# Create data directory if it doesn't exist
-os.makedirs('data', exist_ok=True)
+# Select relevant columns for M-Pesa pipeline
+columns = ['transaction_id', 'sender', 'receiver', 'amount', 'fee', 'timestamp', 'transaction_type', 'status']
+df = df[columns]
 
 # Save to CSV
 df.to_csv('data/sample_mpesa_transactions.csv', index=False)
