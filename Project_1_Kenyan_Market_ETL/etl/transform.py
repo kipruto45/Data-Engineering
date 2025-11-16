@@ -38,13 +38,13 @@ def clean_data(df):
     numeric_cols = df.select_dtypes(include=[np.number]).columns
     for col in numeric_cols:
         if df[col].isnull().any():
-            df[col].fillna(df[col].median(), inplace=True)
+            df[col] = df[col].fillna(df[col].median())
     
     # Fill categorical columns with mode
     categorical_cols = df.select_dtypes(include=['object']).columns
     for col in categorical_cols:
         if df[col].isnull().any():
-            df[col].fillna(df[col].mode()[0], inplace=True)
+            df[col] = df[col].fillna(df[col].mode()[0])
     
     missing_after = df.isnull().sum().sum()
     print(f"Missing values handled: {missing_before - missing_after}")
