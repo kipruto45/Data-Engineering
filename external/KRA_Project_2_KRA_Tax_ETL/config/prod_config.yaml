@@ -1,0 +1,7 @@
+db_path: ./kra_tax.db
+data_dir: ./data
+sample_size: 1000000
+logging:
+  level: INFO
+s3_bucket: ''
+aws_region: 'us-east-1'
