@@ -134,7 +134,8 @@ Each project follows best practices with:
 ## 📧 Contact
 
 For inquiries about these projects or data engineering opportunities, please reach out through the contact information provided in the CV.
-
+kiprutovictor39@gmail.com
++254723484552
 ---
 
 **Last Updated:** November 2025
