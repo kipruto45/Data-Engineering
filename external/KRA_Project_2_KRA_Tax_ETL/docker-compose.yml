@@ -1,0 +1,9 @@
+version: '3.8'
+services:
+  etl:
+    build: .
+    volumes:
+      - ./:/app
+    environment:
+      - ETL_SIZE=1000
+    command: python run_pipeline.py --generate --size ${ETL_SIZE}
