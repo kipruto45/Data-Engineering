@@ -1,16 +1,27 @@
 from django.test import TestCase
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
-from accounts.models import Profile, AuthSession, RefreshToken
+from accounts.models import Profile, AuthSession, RefreshToken, RevokedAccessToken
 from audit.models import AuditLog
+from monitoring import metrics
 
 
 class RefreshTokenRotationTests(TestCase):
     def setUp(self):
+        super().setUp()
+        # ensure metrics.increment won't raise during tests
+        self._orig_increment = getattr(metrics, 'increment', None)
+        metrics.increment = lambda *a, **k: None
+        # user setup
         User = get_user_model()
         self.user = User.objects.create_user(username="alice", password="password")
         Profile.objects.create(user=self.user, role="student", status=Profile.STATUS_ACTIVE)
         self.client = APIClient()
+
+    def tearDown(self):
+        # restore original metrics increment function if present
+        if hasattr(self, '_orig_increment') and self._orig_increment is not None:
+            metrics.increment = self._orig_increment
 
     def test_login_and_refresh_rotate(self):
         resp = self.client.post("/api/auth/login/", {"identifier": "alice", "password": "password"}, format="json")
@@ -29,6 +40,9 @@ class RefreshTokenRotationTests(TestCase):
         self.assertTrue(AuthSession.objects.filter(user=self.user, revoked=True).exists())
         # audit logged
         self.assertTrue(AuditLog.objects.filter(user=self.user, action="refresh_token_reuse_detected").exists())
+        # access tokens revoked
+        self.assertTrue(RevokedAccessToken.objects.filter(session__user=self.user, revoked=True).exists())
+
 
     def test_invalid_secret_revokes_session(self):
         resp = self.client.post("/api/auth/login/", {"identifier": "alice", "password": "password"}, format="json")
@@ -40,3 +54,5 @@ class RefreshTokenRotationTests(TestCase):
         self.assertTrue(AuthSession.objects.filter(user=self.user, revoked=True).exists())
         # audit logged
         self.assertTrue(AuditLog.objects.filter(user=self.user, action="invalid_refresh_token").exists())
+        # access tokens revoked for the session
+        self.assertTrue(RevokedAccessToken.objects.filter(session__user=self.user, revoked=True).exists())

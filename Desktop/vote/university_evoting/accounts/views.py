@@ -12,6 +12,8 @@ from django.contrib.auth.hashers import make_password, check_password
 from .models import AuthSession, RefreshToken, Profile
 from audit.models import AuditLog
 import logging
+from django.utils import timezone
+from monitoring import metrics
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +51,16 @@ class LoginView(APIView):
         token_value, token_id, secret = generate_refresh_token_value()
         token_hash = make_password(secret)
         RefreshToken.objects.create(session=session, token_id=token_id, token_hash=token_hash)
-        access_token = f"access-{uuid.uuid4().hex}"
+        # record metric: refresh token issued
+        try:
+            metrics.increment("refresh_token_issued")
+        except Exception:
+            logger.debug("metrics increment failed for refresh_token_issued")
+        # issue an access token (simple JTI-based token for POC)
+        access_jti = uuid.uuid4()
+        from .models import RevokedAccessToken
+        RevokedAccessToken.objects.create(jti=access_jti, session=session)
+        access_token = f"{access_jti}.{uuid.uuid4().hex}"
         return Response({"access_token": access_token, "refresh_token": token_value})
 
 
@@ -78,9 +89,16 @@ class RefreshView(APIView):
             sess = token.session
             user = sess.user
             AuthSession.objects.filter(user=user, revoked=False).update(revoked=True)
+            # revoke issued access tokens for the user
+            from .models import RevokedAccessToken
+            RevokedAccessToken.objects.filter(session__user=user, revoked=False).update(revoked=True, revoked_at=timezone.now())
             # audit
             ip = request.META.get('REMOTE_ADDR')
             AuditLog.objects.create(user=user, action="refresh_token_reuse_detected", ip_address=ip, meta=f"token_id={token.token_id}")
+            try:
+                metrics.increment("refresh_token_reuse")
+            except Exception:
+                logger.debug("metrics increment failed for refresh_token_reuse")
             logger.warning("Refresh token reuse detected", extra={"user_id": user.id, "token_id": str(token.token_id)})
             return Response({"detail": "token reuse detected; sessions revoked"}, status=401)
         # Ensure session not revoked already
@@ -89,8 +107,15 @@ class RefreshView(APIView):
         if not check_password(secret, token.token_hash):
             # possible token misuse: revoke session
             AuthSession.objects.filter(id=token.session.id, revoked=False).update(revoked=True)
+            # revoke issued access tokens for the session
+            from .models import RevokedAccessToken
+            RevokedAccessToken.objects.filter(session=token.session, revoked=False).update(revoked=True, revoked_at=timezone.now())
             ip = request.META.get('REMOTE_ADDR')
             AuditLog.objects.create(user=token.session.user, action="invalid_refresh_token", ip_address=ip, meta=f"token_id={token.token_id}")
+            try:
+                metrics.increment("invalid_refresh_token")
+            except Exception:
+                logger.debug("metrics increment failed for invalid_refresh_token")
             logger.warning("Invalid refresh token used", extra={"user_id": token.session.user.id, "token_id": str(token.token_id)})
             return Response({"detail": "invalid token"}, status=401)
         # rotate token: mark old as rotated and create a new token for same session
