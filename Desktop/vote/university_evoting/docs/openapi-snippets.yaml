@@ -1,0 +1,45 @@
+openapi: 3.0.3
+info:
+  title: University E-Voting API (snippets)
+  version: 0.1.0
+paths:
+  /api/auth/login/:
+    post:
+      summary: Login and return JWT + refresh token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                identifier:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '200':
+          description: tokens
+  /api/elections/{id}/vote/:
+    post:
+      summary: Submit vote
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                token:
+                  type: string
+                payload:
+                  type: string
+      responses:
+        '200':
+          description: receipt
