@@ -11,6 +11,9 @@ class EndToEndVoteFlowTests(TestCase):
         self.client = APIClient()
         User = get_user_model()
         self.user = User.objects.create_user(username="voter1", password="testpass")
+        # Ensure Profile exists for the user
+        from accounts.models import Profile
+        Profile.objects.create(user=self.user, role="student", status=Profile.STATUS_ACTIVE)
 
         # Create sample election window that includes now
         now = timezone.now()
@@ -71,3 +74,21 @@ class EndToEndVoteFlowTests(TestCase):
         r = self.client.post("/api/voting/cast/", payload, format="json")
         # Should 404 because token not found for this user
         self.assertEqual(r.status_code, 404)
+
+    def test_suspended_user_cannot_issue_or_cast(self):
+        # Suspend user
+        profile = getattr(self.user, "profile", None)
+        if profile:
+            profile.status = "suspended"
+            profile.save()
+
+        self.client.login(username="voter1", password="testpass")
+        r1 = self.client.post(f"/api/voting/issue/{self.election.id}/")
+        self.assertEqual(r1.status_code, 403)
+
+        # Create token bypassing API to simulate a leaked token and ensure cast is rejected
+        from voting.models import VoteToken
+        vt = VoteToken.objects.create(user=self.user, election=self.election)
+        payload = {"token": str(vt.token), "position_id": self.position.id, "candidate_id": self.candidate.id}
+        r2 = self.client.post("/api/voting/cast/", payload, format="json")
+        self.assertEqual(r2.status_code, 403)
