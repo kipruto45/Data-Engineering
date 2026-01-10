@@ -1,6 +1,18 @@
 from django.urls import path
-from .views import MeView, MFATOTPRegisterView, MFATOTPVerifyView, MFATOTPListView, MFATOTPDeleteView
-from .views import MagicLinkRequestView, MagicLinkVerifyView
+from .views import (
+    MeView,
+    MFATOTPRegisterView,
+    MFATOTPVerifyView,
+    MFATOTPListView,
+    MFATOTPDeleteView,
+    MagicLinkRequestView,
+    MagicLinkVerifyView,
+    PasswordResetRequestView,
+    PasswordResetConfirmView,
+    LoginView,
+    RefreshView,
+    LogoutView,
+)
 
 urlpatterns = [
     path("me/", MeView.as_view(), name="api-me"),
@@ -12,4 +24,11 @@ urlpatterns = [
     # Magic link (passwordless)
     path("magic/request/", MagicLinkRequestView.as_view(), name="magic-request"),
     path("magic/verify/", MagicLinkVerifyView.as_view(), name="magic-verify"),
+    # Password reset
+    path("password/reset/request/", PasswordResetRequestView.as_view(), name='password-reset-request'),
+    path("password/reset/confirm/", PasswordResetConfirmView.as_view(), name='password-reset-confirm'),
+    # Auth core
+    path("login/", LoginView.as_view(), name="login"),
+    path("token/refresh/", RefreshView.as_view(), name="token-refresh"),
+    path("logout/", LogoutView.as_view(), name="logout"),
 ]
