@@ -1,0 +1,59 @@
+name: Scheduled ETL
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: {}
+  schedule:
+    - cron: '0 2 * * *' # daily at 02:00 UTC
+
+jobs:
+  etl:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r external/KRA_Project_2_KRA_Tax_ETL/requirements.txt
+
+      - name: Run tests (quick)
+        run: |
+          cd external/KRA_Project_2_KRA_Tax_ETL
+          pytest -q || true
+
+      - name: Run ETL (generate + pipeline)
+        env:
+          ETL_SIZE: ${{ env.ETL_SIZE || '1000' }}
+        run: |
+          cd external/KRA_Project_2_KRA_Tax_ETL
+          python scripts/generate_sample_data.py --size ${ETL_SIZE}
+          python run_pipeline.py
+
+      - name: Optional: sync processed CSVs to S3
+        if: ${{ secrets.AWS_ACCESS_KEY_ID != '' && secrets.S3_BUCKET != '' }}
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          S3_BUCKET: ${{ secrets.S3_BUCKET }}
+        run: |
+          pip install awscli
+          cd external/KRA_Project_2_KRA_Tax_ETL
+          aws s3 sync data/processed s3://${S3_BUCKET}/kra/processed/${{ github.run_id }}/

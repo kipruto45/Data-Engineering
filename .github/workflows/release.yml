@@ -1,0 +1,40 @@
+name: Release artifacts
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install deps
+        run: pip install -r external/KRA_Project_2_KRA_Tax_ETL/requirements.txt
+
+      - name: Generate processed artifacts
+        run: |
+          cd external/KRA_Project_2_KRA_Tax_ETL
+          python scripts/generate_sample_data.py --size 5000
+          python run_pipeline.py
+
+      - name: Upload processed data to S3
+        if: ${{ secrets.AWS_ACCESS_KEY_ID && secrets.S3_BUCKET }}
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          S3_BUCKET: ${{ secrets.S3_BUCKET }}
+        run: |
+          pip install awscli
+          cd external/KRA_Project_2_KRA_Tax_ETL
+          aws s3 sync data/processed s3://${S3_BUCKET}/kra/processed/${{ github.ref_name }}/

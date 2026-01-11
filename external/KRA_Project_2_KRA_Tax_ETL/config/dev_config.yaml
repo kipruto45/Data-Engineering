@@ -1,0 +1,5 @@
+db_path: ./kra_tax.db
+data_dir: ./data
+sample_size: 100000
+logging:
+  level: INFO
