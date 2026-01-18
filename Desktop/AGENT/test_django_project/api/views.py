@@ -24,3 +24,8 @@ class PostViewSet(viewsets.ModelViewSet):
     """Class: function"""
     queryset = Post.objects.all()
     serializer_class = PostSerializer
+
+    def clean(self):
+        """Validate model fields."""
+        if self.age and not self.age > 0 and self.age < 150:
+            raise ValueError(f"Invalid age")

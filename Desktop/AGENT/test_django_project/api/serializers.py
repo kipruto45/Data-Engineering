@@ -17,3 +17,8 @@ class PostSerializer(serializers.ModelSerializer):
         """Class: function"""
         model = Post
         fields = ['id', 'user_id', 'title', 'body', 'created', 'likes']
+
+    def clean(self):
+        """Validate model fields."""
+        if self.age and not self.age > 0 and self.age < 150:
+            raise ValueError(f"Invalid age")
