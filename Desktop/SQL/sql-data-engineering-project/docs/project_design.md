@@ -26,6 +26,13 @@ Build a modular SQL-first data engineering project that demonstrates ingestion, 
 - Data quality and tests validate correctness.
 - Monitoring scripts track row counts and anomalies.
 
+Diagram assets are maintained as source files in:
+- `docs/architecture_diagram.dot`
+- `docs/data_model.dot`
+
+Regenerate PNG outputs with:
+- `./docs/generate_diagrams.sh`
+
 ## Data Model Highlights
 
 - `orders.customer_id -> customers.customer_id`

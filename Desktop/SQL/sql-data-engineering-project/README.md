@@ -90,3 +90,7 @@ psql "$DATABASE_URL" -f tests/test_quality_checks.sql
 - SQL is written for PostgreSQL.
 - `etl/extract.sql` uses `\copy`, so run with `psql` from project root.
 - Example data is included in `data/raw/`.
+- Architecture and data model diagrams are generated from DOT sources:
+  - `docs/architecture_diagram.dot`
+  - `docs/data_model.dot`
+  - Regenerate with `./docs/generate_diagrams.sh`
